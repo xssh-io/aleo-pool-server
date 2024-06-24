@@ -14,7 +14,7 @@ use futures::stream::StreamExt;
 use rand::seq::SliceRandom;
 use signal_hook::consts::{SIGABRT, SIGHUP, SIGINT, SIGQUIT, SIGTERM, SIGTSTP, SIGUSR1};
 use signal_hook_tokio::Signals;
-use snarkvm::{console::account::address::Address, prelude::Testnet3};
+use snarkvm::{console::account::Address, prelude::CanaryV0};
 use tokio::sync::mpsc::Sender;
 use tracing::{debug, error, info, warn};
 use tracing_log::{log, LogTracer};
@@ -36,7 +36,7 @@ struct Opt {
 
     /// Mining pool address
     #[clap(short, long)]
-    address: Address<Testnet3>,
+    address: Address<CanaryV0>,
 
     /// Port to listen for incoming provers
     #[clap(short, long)]

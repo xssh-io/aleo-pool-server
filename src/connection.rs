@@ -12,8 +12,8 @@ use anyhow::{anyhow, Result};
 use futures_util::SinkExt;
 use semver::Version;
 use snarkvm::{
-    console::account::address::Address,
-    prelude::{Environment, FromBytes, Testnet3},
+    console::account::Address,
+    prelude::{Environment, FromBytes, CanaryV0},
 };
 use snarkvm_algorithms::polycommit::kzg10::{KZGCommitment, KZGProof};
 use tokio::{
@@ -30,7 +30,7 @@ use crate::server::ServerMessage;
 
 pub struct Connection {
     user_agent: String,
-    address: Option<Address<Testnet3>>,
+    address: Option<Address<CanaryV0>>,
     version: Version,
     last_received: Option<Instant>,
 }
@@ -46,7 +46,7 @@ impl Connection {
         stream: TcpStream,
         peer_addr: SocketAddr,
         server_sender: Sender<ServerMessage>,
-        pool_address: Address<Testnet3>,
+        pool_address: Address<CanaryV0>,
     ) {
         task::spawn(Connection::run(stream, peer_addr, server_sender, pool_address));
     }
@@ -55,7 +55,7 @@ impl Connection {
         stream: TcpStream,
         peer_addr: SocketAddr,
         server_sender: Sender<ServerMessage>,
-        pool_address: Address<Testnet3>,
+        pool_address: Address<CanaryV0>,
     ) {
         let mut framed = Framed::new(stream, StratumCodec::default());
 
@@ -144,7 +144,7 @@ impl Connection {
                                     warn!("Failed to decode commitment {} from peer {:?}", commitment, peer_addr);
                                     break;
                                 }
-                                let commitment = KZGCommitment::<<Testnet3 as Environment>::PairingCurve>::from_bytes_le(&commitment_bytes.unwrap()[..]);
+                                let commitment = KZGCommitment::<<CanaryV0 as Environment>::PairingCurve>::from_bytes_le(&commitment_bytes.unwrap()[..]);
                                 if commitment.is_err() {
                                     warn!("Invalid commitment from peer {:?}", peer_addr);
                                     break;
@@ -154,7 +154,7 @@ impl Connection {
                                 warn!("Failed to decode proof {} from peer {:?}", proof, peer_addr);
                                     break;
                                 }
-                                let proof = KZGProof::<<Testnet3 as Environment>::PairingCurve>::from_bytes_le(&proof_bytes.unwrap());
+                                let proof = KZGProof::<<CanaryV0 as Environment>::PairingCurve>::from_bytes_le(&proof_bytes.unwrap());
                                 if proof.is_err() {
                                     warn!("Invalid proof from peer {:?}", peer_addr);
                                     break;
@@ -257,14 +257,14 @@ impl Connection {
         }
     }
 
-    pub async fn authorize(framed: &mut Framed<TcpStream, StratumCodec>) -> Result<Address<Testnet3>> {
+    pub async fn authorize(framed: &mut Framed<TcpStream, StratumCodec>) -> Result<Address<CanaryV0>> {
         let peer_addr = framed.get_ref().peer_addr()?;
         match timeout(PEER_HANDSHAKE_TIMEOUT, framed.next()).await {
             Ok(Some(Ok(message))) => {
                 trace!("Received message {} from peer {:?}", message.name(), peer_addr);
                 match message {
                     StratumMessage::Authorize(id, address, _) => {
-                        let address = Address::<Testnet3>::from_str(address.as_str()).map_err(|e| {
+                        let address = Address::<CanaryV0>::from_str(address.as_str()).map_err(|e| {
                             warn!("Invalid address {} from peer {:?}: {:?}", address, peer_addr, e);
                             e
                         })?;

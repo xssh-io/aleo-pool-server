@@ -13,7 +13,7 @@ use deadpool_postgres::{
     RecyclingMethod,
     Runtime,
 };
-use snarkvm::prelude::{PuzzleCommitment, Testnet3};
+use snarkvm::prelude::{PuzzleCommitment, CanaryV0};
 use tokio_postgres::NoTls;
 use tracing::warn;
 
@@ -67,7 +67,7 @@ impl DB {
 
     pub async fn save_solution(
         &self,
-        commitment: PuzzleCommitment<Testnet3>,
+        commitment: PuzzleCommitment<CanaryV0>,
         shares: HashMap<String, u64>,
     ) -> Result<()> {
         let mut conn = self.connection_pool.get().await?;

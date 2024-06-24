@@ -14,7 +14,7 @@ use savefile::{load_file, save_file};
 use savefile_derive::Savefile;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use snarkvm::prelude::{PuzzleCommitment, Testnet3};
+use snarkvm::prelude::{PuzzleCommitment, CanaryV0};
 use tokio::{
     sync::{
         mpsc::{channel, Sender},
@@ -120,7 +120,7 @@ struct Null {}
 pub enum AccountingMessage {
     NewShare(String, u64),
     SetN(u64),
-    NewSolution(PuzzleCommitment<Testnet3>),
+    NewSolution(PuzzleCommitment<CanaryV0>),
     Exit,
 }
 

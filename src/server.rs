@@ -14,13 +14,14 @@ use anyhow::ensure;
 use blake2::Digest;
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
-use snarkos_node_messages::{Data, UnconfirmedSolution};
+use snarkos_node_router_messages::{Data, UnconfirmedSolution};
 use snarkvm::{
-    circuit::PrimeField,
-    console::account::address::Address,
+    console::account::Address,
     prelude::{Environment, PartialSolution, ProverSolution, Testnet3, ToBytes},
     synthesizer::{CoinbasePuzzle, EpochChallenge, PuzzleCommitment, PuzzleConfig, UniversalSRS},
 };
+use snarkvm::circuit::prelude::PrimeField;
+use snarkvm::prelude::CanaryV0;
 use snarkvm_algorithms::{
     cfg_into_iter,
     crypto_hash::sha256d_to_u64,
@@ -44,7 +45,7 @@ use crate::{connection::Connection, validator_peer::SnarkOSMessage, AccountingMe
 
 struct ProverState {
     peer_addr: SocketAddr,
-    address: Address<Testnet3>,
+    address: Address<CanaryV0>,
     speed_2m: Speedometer,
     speed_5m: Speedometer,
     speed_15m: Speedometer,
@@ -55,7 +56,7 @@ struct ProverState {
 }
 
 impl ProverState {
-    pub fn new(peer_addr: SocketAddr, address: Address<Testnet3>) -> Self {
+    pub fn new(peer_addr: SocketAddr, address: Address<CanaryV0>) -> Self {
         Self {
             peer_addr,
             address,
@@ -93,7 +94,7 @@ impl ProverState {
         self.current_target
     }
 
-    pub fn address(&self) -> Address<Testnet3> {
+    pub fn address(&self) -> Address<CanaryV0> {
         self.address
     }
 
@@ -186,17 +187,17 @@ impl PoolState {
 #[derive(Debug)]
 pub enum ServerMessage {
     ProverConnected(TcpStream, SocketAddr),
-    ProverAuthenticated(SocketAddr, Address<Testnet3>, Sender<StratumMessage>),
+    ProverAuthenticated(SocketAddr, Address<CanaryV0>, Sender<StratumMessage>),
     ProverDisconnected(SocketAddr),
     ProverSubmit(
         Id,
         SocketAddr,
         u32,
         u64,
-        KZGCommitment<<Testnet3 as Environment>::PairingCurve>,
-        KZGProof<<Testnet3 as Environment>::PairingCurve>,
+        KZGCommitment<<CanaryV0 as Environment>::PairingCurve>,
+        KZGProof<<CanaryV0 as Environment>::PairingCurve>,
     ),
-    NewEpochChallenge(EpochChallenge<Testnet3>, u64),
+    NewEpochChallenge(EpochChallenge<CanaryV0>, u64),
     Exit,
 }
 
@@ -223,15 +224,15 @@ pub struct Server {
     sender: Sender<ServerMessage>,
     validator_sender: Arc<Sender<SnarkOSMessage>>,
     accounting_sender: Sender<AccountingMessage>,
-    pool_address: Address<Testnet3>,
+    pool_address: Address<CanaryV0>,
     connected_provers: RwLock<HashSet<SocketAddr>>,
     authenticated_provers: Arc<RwLock<HashMap<SocketAddr, Sender<StratumMessage>>>>,
     pool_state: Arc<RwLock<PoolState>>,
     prover_states: Arc<RwLock<HashMap<SocketAddr, RwLock<ProverState>>>>,
-    prover_address_connections: Arc<RwLock<HashMap<Address<Testnet3>, HashSet<SocketAddr>>>>,
-    coinbase_puzzle: CoinbasePuzzle<Testnet3>,
+    prover_address_connections: Arc<RwLock<HashMap<Address<CanaryV0>, HashSet<SocketAddr>>>>,
+    coinbase_puzzle: CoinbasePuzzle<CanaryV0>,
     latest_epoch_number: AtomicU32,
-    latest_epoch_challenge: Arc<RwLock<Option<EpochChallenge<Testnet3>>>>,
+    latest_epoch_challenge: Arc<RwLock<Option<EpochChallenge<CanaryV0>>>>,
     latest_proof_target: AtomicU64,
     nonce_seen: Arc<FlurryHashSet<u64>>,
 }
@@ -239,7 +240,7 @@ pub struct Server {
 impl Server {
     pub async fn init(
         port: u16,
-        address: Address<Testnet3>,
+        address: Address<CanaryV0>,
         validator_sender: Arc<Sender<SnarkOSMessage>>,
         accounting_sender: Sender<AccountingMessage>,
     ) -> Arc<Server> {
@@ -257,11 +258,11 @@ impl Server {
         };
 
         info!("Initializing universal SRS");
-        let srs = UniversalSRS::<Testnet3>::load().expect("Failed to load SRS");
+        let srs = UniversalSRS::<CanaryV0>::load().expect("Failed to load SRS");
         info!("Universal SRS initialized");
 
         info!("Initializing coinbase verifying key");
-        let coinbase_puzzle = CoinbasePuzzle::<Testnet3>::trim(&srs, PuzzleConfig { degree: (1 << 13) - 1 })
+        let coinbase_puzzle = CoinbasePuzzle::<CanaryV0>::trim(&srs, PuzzleConfig { degree: (1 << 13) - 1 })
             .expect("Failed to load coinbase verifying key");
         info!("Coinbase verifying key initialized");
 
@@ -698,8 +699,8 @@ impl Server {
                         if let Err(e) = validator_sender
                             .send(SnarkOSMessage::UnconfirmedSolution(UnconfirmedSolution {
                                 puzzle_commitment: PuzzleCommitment::new(commitment),
-                                solution: Data::Object(ProverSolution::<Testnet3>::new(
-                                    PartialSolution::<Testnet3>::new(pool_address, nonce, commitment),
+                                solution: Data::Object(ProverSolution::<CanaryV0>::new(
+                                    PartialSolution::<CanaryV0>::new(pool_address, nonce, commitment),
                                     proof,
                                 )),
                             }))
@@ -733,7 +734,7 @@ impl Server {
         self.pool_state.write().await.speed().await
     }
 
-    pub async fn address_prover_count(&self, address: Address<Testnet3>) -> u32 {
+    pub async fn address_prover_count(&self, address: Address<CanaryV0>) -> u32 {
         self.prover_address_connections
             .read()
             .await
@@ -742,7 +743,7 @@ impl Server {
             .unwrap_or(0)
     }
 
-    pub async fn address_speed(&self, address: Address<Testnet3>) -> Vec<f64> {
+    pub async fn address_speed(&self, address: Address<CanaryV0>) -> Vec<f64> {
         let mut speed = vec![0.0, 0.0, 0.0, 0.0];
         let prover_connections_lock = self.prover_address_connections.read().await;
         let prover_connections = prover_connections_lock.get(&address);
@@ -767,10 +768,10 @@ impl Server {
 }
 
 fn prover_polynomial(
-    epoch_challenge: &EpochChallenge<Testnet3>,
-    address: Address<Testnet3>,
+    epoch_challenge: &EpochChallenge<CanaryV0>,
+    address: Address<CanaryV0>,
     nonce: u64,
-) -> anyhow::Result<DensePolynomial<<<Testnet3 as Environment>::PairingCurve as PairingEngine>::Fr>> {
+) -> anyhow::Result<DensePolynomial<<<CanaryV0 as Environment>::PairingCurve as PairingEngine>::Fr>> {
     let input = {
         let mut bytes = [0u8; 76];
         bytes[..4].copy_from_slice(&epoch_challenge.epoch_number().to_bytes_le()?);
@@ -780,7 +781,7 @@ fn prover_polynomial(
         bytes
     };
     Ok(hash_to_polynomial::<
-        <<Testnet3 as Environment>::PairingCurve as PairingEngine>::Fr,
+        <<CanaryV0 as Environment>::PairingCurve as PairingEngine>::Fr,
     >(&input, epoch_challenge.degree()))
 }
 

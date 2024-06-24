@@ -9,7 +9,7 @@ use std::{
 use futures_util::sink::SinkExt;
 use rand::{rngs::OsRng, Rng};
 use snarkos_account::Account;
-use snarkos_node_messages::{
+use snarkos_node_router_messages::{
     ChallengeRequest,
     ChallengeResponse,
     Data,
@@ -21,7 +21,7 @@ use snarkos_node_messages::{
     PuzzleResponse,
 };
 use snarkvm::{
-    prelude::{FromBytes, Network, Testnet3},
+    prelude::{FromBytes, Network, CanaryV0},
     synthesizer::Block,
 };
 use tokio::{
@@ -46,7 +46,7 @@ pub struct Node {
     receiver: Arc<Mutex<Receiver<SnarkOSMessage>>>,
 }
 
-pub(crate) type SnarkOSMessage = snarkos_node_messages::Message<Testnet3>;
+pub(crate) type SnarkOSMessage = snarkos_node_messages::Message<PrimeField>;
 
 impl Node {
     pub fn init(operator: String) -> Self {
@@ -71,7 +71,7 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
     let receiver = node.receiver();
     let sender = node.sender();
     task::spawn(async move {
-        let genesis_header = *Block::<Testnet3>::from_bytes_le(Testnet3::genesis_bytes())
+        let genesis_header = *Block::<CanaryV0>::from_bytes_le(CanaryV0::genesis_bytes())
             .unwrap()
             .header();
         let connected = Arc::new(AtomicBool::new(false));
@@ -116,7 +116,7 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                 Ok(socket) => match socket {
                     Ok(socket) => {
                         info!("Connected to {}", node.operator);
-                        let mut framed: Framed<TcpStream, MessageCodec<Testnet3>> =
+                        let mut framed: Framed<TcpStream, MessageCodec<CanaryV0>> =
                             Framed::new(socket, Default::default());
                         let challenge = SnarkOSMessage::ChallengeRequest(ChallengeRequest {
                             version: SnarkOSMessage::VERSION,
