@@ -14,7 +14,7 @@ use savefile::{load_file, save_file};
 use savefile_derive::Savefile;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use snarkvm::prelude::{PuzzleCommitment, CanaryV0};
+use snarkvm::prelude::{coinbase::PuzzleCommitment, CanaryV0};
 use tokio::{
     sync::{
         mpsc::{channel, Sender},
@@ -23,6 +23,7 @@ use tokio::{
     task,
     time::sleep,
 };
+#[allow(unused_imports)]
 use tracing::{debug, error, info};
 
 #[cfg(feature = "db")]
@@ -170,6 +171,7 @@ impl Accounting {
                         pplns.write().await.set_n(n);
                         debug!("Set N to {}", n);
                     }
+                    #[allow(unused_variables)]
                     NewSolution(commitment) => {
                         let pplns = pplns.read().await.clone();
                         let (_, address_shares) = Accounting::pplns_to_provers_shares(&pplns);

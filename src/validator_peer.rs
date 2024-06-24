@@ -12,7 +12,6 @@ use snarkos_account::Account;
 use snarkos_node_router_messages::{
     ChallengeRequest,
     ChallengeResponse,
-    Data,
     MessageCodec,
     NodeType,
     Ping,
@@ -21,8 +20,8 @@ use snarkos_node_router_messages::{
     PuzzleResponse,
 };
 use snarkvm::{
+    ledger::{narwhal::Data, Block},
     prelude::{FromBytes, Network, CanaryV0},
-    synthesizer::Block,
 };
 use tokio::{
     net::TcpStream,

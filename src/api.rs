@@ -10,7 +10,7 @@ use warp::{
     head,
     path,
     reply,
-    reply::{json, Json},
+    reply::{json, Json, WithStatus},
     serve,
     Filter,
     Reply,
@@ -75,7 +75,7 @@ async fn address_stats(address: String, server: Arc<Server>) -> impl Reply {
     if let Ok(address) = address.parse::<Address<CanaryV0>>() {
         let speed = server.address_speed(address).await;
         let prover_count = server.address_prover_count(address).await;
-        Ok(reply::with_status(
+        Ok::<WithStatus<Json>, Infallible>(reply::with_status(
             json(&json!({
                 "online_provers": prover_count,
                 "speed": speed,
@@ -83,7 +83,7 @@ async fn address_stats(address: String, server: Arc<Server>) -> impl Reply {
             warp::http::StatusCode::OK,
         ))
     } else {
-        Ok(reply::with_status(
+        Ok::<WithStatus<Json>, Infallible>(reply::with_status(
             json(&json!({
                 "error": "invalid address"
             })),
@@ -106,9 +106,9 @@ async fn admin_current_round(addr: Option<SocketAddr>, accounting: Arc<Accountin
     let addr = addr.unwrap();
     if addr.ip().is_loopback() {
         let pplns = accounting.current_round().await;
-        Ok(reply::with_status(json(&pplns), warp::http::StatusCode::OK))
+        Ok::<WithStatus<Json>, Infallible>(reply::with_status(json(&pplns), warp::http::StatusCode::OK))
     } else {
-        Ok(reply::with_status(
+        Ok::<WithStatus<Json>, Infallible>(reply::with_status(
             json(&"Method Not Allowed"),
             warp::http::StatusCode::METHOD_NOT_ALLOWED,
         ))

@@ -14,11 +14,18 @@ use anyhow::ensure;
 use blake2::Digest;
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
-use snarkos_node_router_messages::{Data, UnconfirmedSolution};
+use snarkos_node_router_messages::UnconfirmedSolution;
 use snarkvm::{
+    circuit::prelude::PrimeField,
     console::account::Address,
-    prelude::{Environment, PartialSolution, ProverSolution, Testnet3, ToBytes},
-    synthesizer::{CoinbasePuzzle, EpochChallenge, PuzzleCommitment, PuzzleConfig, UniversalSRS},
+    prelude::{
+        coinbase::{CoinbasePuzzle, EpochChallenge, PartialSolution, ProverSolution, PuzzleCommitment, PuzzleConfig},
+        narwhal::Data,
+        Environment,
+        Testnet3,
+        ToBytes,
+        UniversalSRS,
+    },
 };
 use snarkvm::circuit::prelude::PrimeField;
 use snarkvm::prelude::CanaryV0;
