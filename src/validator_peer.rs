@@ -46,7 +46,7 @@ pub struct Node {
     receiver: Arc<Mutex<Receiver<SnarkOSMessage>>>,
 }
 
-pub(crate) type SnarkOSMessage = snarkos_node_messages::Message<PrimeField>;
+pub(crate) type SnarkOSMessage = snarkos_node_router_messages::Message<PrimeField>;
 
 impl Node {
     pub fn init(operator: String) -> Self {
