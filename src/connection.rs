@@ -11,11 +11,7 @@ use aleo_stratum::{
 use anyhow::{anyhow, Result};
 use futures_util::SinkExt;
 use semver::Version;
-use snarkvm::{
-    console::account::Address,
-    prelude::{Environment, FromBytes, CanaryV0},
-};
-use snarkvm_algorithms::polycommit::kzg10::{KZGCommitment, KZGProof};
+use snarkvm::prelude::Address;
 use tokio::{
     net::TcpStream,
     sync::mpsc::{channel, Sender},

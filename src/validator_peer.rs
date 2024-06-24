@@ -19,10 +19,7 @@ use snarkos_node_router_messages::{
     PuzzleRequest,
     PuzzleResponse,
 };
-use snarkvm::{
-    ledger::{narwhal::Data, Block},
-    prelude::{FromBytes, Network, CanaryV0},
-};
+use snarkvm::prelude::{FromBytes, Network};
 use tokio::{
     net::TcpStream,
     sync::{

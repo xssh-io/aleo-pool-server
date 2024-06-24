@@ -14,14 +14,9 @@ db = [
 
 [dependencies]
 #snarkvm = { path = "../../src/snarkVM" }
-#snarkvm = { git = "https://github.com/HarukaMa/snarkVM.git", branch = "unchecked" }
-#snarkvm-algorithms = { git = "https://github.com/HarukaMa/snarkVM.git", branch = "unchecked" }
-snarkvm = { git = "https://github.com/AleoNet/snarkVM.git", branch = "mainnet-staging" }
-snarkvm-algorithms = { git = "https://github.com/AleoNet/snarkVM.git", branch = "mainnet-staging" }
-snarkvm-curves = { git = "https://github.com/AleoNet/snarkVM.git", branch = "mainnet-staging" }
-snarkvm-utilities = { git = "https://github.com/AleoNet/snarkVM.git", branch = "mainnet-staging" }
-snarkos-account = { git = "https://github.com/AleoNet/snarkOS.git", branch = "mainnet-staging" }
-snarkos-node-router-messages = { git = "https://github.com/AleoNet/snarkOS.git", branch = "mainnet-staging" }
+snarkvm = { git = "https://github.com/AleoNet/snarkVM", branch = "mainnet-staging", features = ["full"] }
+snarkos-account = { git = "https://github.com/AleoNet/snarkOS", branch = "mainnet-staging" }
+snarkos-node-router-messages = { git = "https://github.com/AleoNet/snarkOS", branch = "mainnet-staging" }
 tracing = "0.1.37"
 tracing-log = "0.2.0"
 futures = "0.3.26"
