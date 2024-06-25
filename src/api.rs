@@ -1,7 +1,7 @@
 use std::{convert::Infallible, net::SocketAddr, sync::Arc};
 
 use serde_json::json;
-use snarkvm::{console::account::Address, prelude::CanaryV0};
+use snarkvm::prelude::{Address, TestnetV0};
 use tokio::task;
 use tracing::info;
 use warp::{
@@ -72,7 +72,7 @@ async fn pool_stats(server: Arc<Server>) -> Json {
 }
 
 async fn address_stats(address: String, server: Arc<Server>) -> impl Reply {
-    if let Ok(address) = address.parse::<Address<CanaryV0>>() {
+    if let Ok(address) = address.parse::<Address<Testnet3>>() {
         let speed = server.address_speed(address).await;
         let prover_count = server.address_prover_count(address).await;
         Ok::<WithStatus<Json>, Infallible>(reply::with_status(

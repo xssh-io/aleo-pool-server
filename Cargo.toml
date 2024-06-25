@@ -104,7 +104,7 @@ features = ["derive"]
 [dev-dependencies]
 criterion = "0.5.1"
 
-# testnet2 code, not updated to testnet3 so skip now
+# testnet2 code, not updated to TestnetV0 so skip now
 #[[bench]]
 #name = "seen_nonce"
 #harness = false

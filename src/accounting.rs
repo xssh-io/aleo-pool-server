@@ -14,7 +14,7 @@ use savefile::{load_file, save_file};
 use savefile_derive::Savefile;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use snarkvm::prelude::{coinbase::PuzzleCommitment, CanaryV0};
+use snarkvm::prelude::TestnetV0;
 use tokio::{
     sync::{
         mpsc::{channel, Sender},
@@ -63,8 +63,8 @@ impl PPLNS {
         if home.is_none() {
             panic!("No home directory found");
         }
-        create_dir_all(home.as_ref().unwrap().join(".aleo_pool_testnet3_2")).unwrap();
-        let db_path = home.unwrap().join(".aleo_pool_testnet3_2/state");
+        create_dir_all(home.as_ref().unwrap().join(".aleo_pool_TestnetV0_2")).unwrap();
+        let db_path = home.unwrap().join(".aleo_pool_TestnetV0_2/state");
         if !db_path.exists() {
             return PPLNS {
                 queue: VecDeque::new(),
@@ -80,7 +80,7 @@ impl PPLNS {
         if home.is_none() {
             panic!("No home directory found");
         }
-        let db_path = home.unwrap().join(".aleo_pool_testnet3_2/state");
+        let db_path = home.unwrap().join(".aleo_pool_TestnetV0_2/state");
         save_file(db_path, 0, self).map_err(|e| anyhow!("Failed to save PPLNS state: {}", e))
     }
 
@@ -121,7 +121,7 @@ struct Null {}
 pub enum AccountingMessage {
     NewShare(String, u64),
     SetN(u64),
-    NewSolution(PuzzleCommitment<CanaryV0>),
+    NewSolution(PuzzleCommitment<Testnet3>),
     Exit,
 }
 
