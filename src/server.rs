@@ -11,7 +11,7 @@ use std::{
 
 use aleo_stratum::{codec::ResponseParams, message::StratumMessage};
 use anyhow::ensure;
-use blake2::Digest;
+use blake2::{digest::typenum::private::Trim, Digest};
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -28,9 +28,10 @@ use snarkvm::{
     prelude::{
         cfg_into_iter,
         narwhal::Data,
-        puzzle::{Solution, SolutionID},
+        puzzle::{Puzzle, PuzzleSolutions, Solution, SolutionID},
         CanaryV0,
         Environment,
+        Network,
         ToBytes,
         UniversalSRS,
     },
@@ -48,6 +49,8 @@ use tokio::{
 use tracing::{debug, error, info, trace, warn};
 
 use crate::{connection::Connection, validator_peer::SnarkOSMessage, AccountingMessage};
+
+type EpochChallenge<N: Network> = N::BlockHash;
 
 struct ProverState {
     peer_addr: SocketAddr,
@@ -236,7 +239,7 @@ pub struct Server {
     pool_state: Arc<RwLock<PoolState>>,
     prover_states: Arc<RwLock<HashMap<SocketAddr, RwLock<ProverState>>>>,
     prover_address_connections: Arc<RwLock<HashMap<Address<CanaryV0>, HashSet<SocketAddr>>>>,
-    coinbase_puzzle: CoinbasePuzzle<CanaryV0>,
+    coinbase_puzzle: Puzzle<CanaryV0>,
     latest_epoch_number: AtomicU32,
     latest_epoch_challenge: Arc<RwLock<Option<EpochChallenge<CanaryV0>>>>,
     latest_proof_target: AtomicU64,
@@ -268,7 +271,7 @@ impl Server {
         info!("Universal SRS initialized");
 
         info!("Initializing coinbase verifying key");
-        let coinbase_puzzle = CoinbasePuzzle::<CanaryV0>::trim(&srs, PuzzleConfig { degree: (1 << 13) - 1 })
+        let coinbase_puzzle = Puzzle::<CanaryV0>::trim(&srs, PuzzleConfig { degree: (1 << 13) - 1 })
             .expect("Failed to load coinbase verifying key");
         info!("Coinbase verifying key initialized");
 
@@ -716,7 +719,7 @@ impl Server {
                         }
                         if let Err(e) = {
                             accounting_sender
-                                .send(AccountingMessage::NewSolution(PuzzleCommitment::new(commitment)))
+                                .send(AccountingMessage::NewSolution(PuzzleSolutions::new(commitment)))
                                 .await
                         } {
                             error!("Failed to send accounting message: {}", e);
