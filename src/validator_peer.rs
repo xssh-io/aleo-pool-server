@@ -19,7 +19,11 @@ use snarkos_node_router_messages::{
     PuzzleRequest,
     PuzzleResponse,
 };
-use snarkvm::prelude::{FromBytes, Network};
+use snarkvm::{
+    circuit::prelude::PrimeField,
+    ledger::{narwhal::Data, Block},
+    prelude::{CanaryV0, FromBytes, Network},
+};
 use tokio::{
     net::TcpStream,
     sync::{
@@ -42,7 +46,7 @@ pub struct Node {
     receiver: Arc<Mutex<Receiver<SnarkOSMessage>>>,
 }
 
-pub(crate) type SnarkOSMessage = snarkos_node_router_messages::Message<PrimeField>;
+pub(crate) type SnarkOSMessage = snarkos_node_router_messages::Message<CanaryV0>;
 
 impl Node {
     pub fn init(operator: String) -> Self {
@@ -151,8 +155,8 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                                                     sleep(Duration::from_secs(25)).await;
                                                     break;
                                                 }
-                                                if node_type != NodeType::Beacon && node_type != NodeType::Validator {
-                                                    error!("Peer is not a beacon or validator");
+                                                if node_type != NodeType::Client && node_type != NodeType::Validator {
+                                                    error!("Peer is not a client or validator");
                                                     sleep(Duration::from_secs(25)).await;
                                                     break;
                                                 }

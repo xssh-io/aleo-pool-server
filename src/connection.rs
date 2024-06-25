@@ -11,9 +11,11 @@ use aleo_stratum::{
 use anyhow::{anyhow, Result};
 use futures_util::SinkExt;
 use semver::Version;
-use snarkvm::prelude::{Address, CanaryV0, Environment};
-use snarkvm_algorithms::polycommit::kzg10::{KZGCommitment, KZGProof};
-use snarkvm_utilities::FromBytes;
+use snarkvm::{
+    algorithms::polycommit::kzg10::{KZGCommitment, KZGProof},
+    circuit::Environment,
+    prelude::{Address, CanaryV0},
+};
 use tokio::{
     net::TcpStream,
     sync::mpsc::{channel, Sender},
@@ -142,7 +144,7 @@ impl Connection {
                                     warn!("Failed to decode commitment {} from peer {:?}", commitment, peer_addr);
                                     break;
                                 }
-                                let commitment = KZGCommitment::<<CanaryV0 as Environment>::PairingCurve>::from_bytes_le(&commitment_bytes.unwrap()[..]);
+                                let commitment = KZGCommitment::<<CanaryV0 as Environment>::Affine>::from_bytes_le(&commitment_bytes.unwrap()[..]);
                                 if commitment.is_err() {
                                     warn!("Invalid commitment from peer {:?}", peer_addr);
                                     break;
@@ -152,7 +154,7 @@ impl Connection {
                                 warn!("Failed to decode proof {} from peer {:?}", proof, peer_addr);
                                     break;
                                 }
-                                let proof = KZGProof::<<CanaryV0 as Environment>::PairingCurve>::from_bytes_le(&proof_bytes.unwrap());
+                                let proof = KZGProof::<<CanaryV0 as Environment>::Affine>::from_bytes_le(&proof_bytes.unwrap());
                                 if proof.is_err() {
                                     warn!("Invalid proof from peer {:?}", peer_addr);
                                     break;

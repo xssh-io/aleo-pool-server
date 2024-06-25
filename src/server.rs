@@ -16,6 +16,7 @@ use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
 use snarkos_node_router_messages::UnconfirmedSolution;
 use snarkvm::{
+    algorithms::polycommit::kzg10::{KZGCommitment, KZGProof},
     circuit::prelude::PrimeField,
     console::account::Address,
     prelude::{
@@ -27,14 +28,6 @@ use snarkvm::{
         UniversalSRS,
     },
 };
-use snarkvm_algorithms::{
-    cfg_into_iter,
-    crypto_hash::sha256d_to_u64,
-    fft::DensePolynomial,
-    polycommit::kzg10::{KZGCommitment, KZGProof, KZG10},
-};
-use snarkvm_curves::PairingEngine;
-use snarkvm_utilities::serialize::CanonicalSerialize;
 use speedometer::Speedometer;
 use tokio::{
     net::{TcpListener, TcpStream},
