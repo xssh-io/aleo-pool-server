@@ -14,7 +14,7 @@ use semver::Version;
 use snarkvm::{
     algorithms::polycommit::kzg10::{KZGCommitment, KZGProof},
     circuit::Environment,
-    prelude::{Address, CanaryV0},
+    prelude::{Address, CanaryV0, FromBytes},
 };
 use tokio::{
     net::TcpStream,

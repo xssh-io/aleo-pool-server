@@ -10,7 +10,7 @@ default = []
 db = ["deadpool-postgres", "tokio-postgres"]
 
 [dependencies]
-snarkvm = { git = "https://github.com/AleoNet/snarkVM", branch = "mainnet-staging", features = ["full", "algorithms", "fields", "metrics"] }
+snarkvm = { git = "https://github.com/AleoNet/snarkVM", rev = "8a05317", features = ["full", "algorithms", "fields", "metrics"] }
 snarkos-account = { git = "https://github.com/AleoNet/snarkOS", branch = "mainnet-staging" }
 snarkos-node-router-messages = { git = "https://github.com/AleoNet/snarkOS", branch = "mainnet-staging" }
 tracing = "0.1.37"

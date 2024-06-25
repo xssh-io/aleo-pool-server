@@ -20,7 +20,6 @@ use snarkos_node_router_messages::{
     PuzzleResponse,
 };
 use snarkvm::{
-    circuit::prelude::PrimeField,
     ledger::{narwhal::Data, Block},
     prelude::{CanaryV0, FromBytes, Network},
 };
