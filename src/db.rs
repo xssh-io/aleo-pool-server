@@ -6,14 +6,18 @@ use deadpool_postgres::{
     Config,
     Hook,
     HookError,
-    HookErrorCause,
+    // HookErrorCause,
     Manager,
     ManagerConfig,
     Pool,
     RecyclingMethod,
     Runtime,
 };
-use snarkvm::prelude::{PuzzleCommitment, CanaryV0};
+use snarkos_node_router_messages::PuzzleResponse;
+use snarkvm::{
+    ledger::puzzle::{Puzzle, PuzzleSolutions},
+    prelude::CanaryV0,
+};
 use tokio_postgres::NoTls;
 use tracing::warn;
 
@@ -67,7 +71,7 @@ impl DB {
 
     pub async fn save_solution(
         &self,
-        commitment: PuzzleCommitment<CanaryV0>,
+        commitment: PuzzleSolutions<CanaryV0>,
         shares: HashMap<String, u64>,
     ) -> Result<()> {
         let mut conn = self.connection_pool.get().await?;

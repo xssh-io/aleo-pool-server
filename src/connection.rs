@@ -11,7 +11,9 @@ use aleo_stratum::{
 use anyhow::{anyhow, Result};
 use futures_util::SinkExt;
 use semver::Version;
-use snarkvm::prelude::Address;
+use snarkvm::prelude::{Address, CanaryV0, Environment};
+use snarkvm_algorithms::polycommit::kzg10::{KZGCommitment, KZGProof};
+use snarkvm_utilities::FromBytes;
 use tokio::{
     net::TcpStream,
     sync::mpsc::{channel, Sender},
@@ -174,12 +176,9 @@ impl Connection {
                         break;
                     }
                 },
-                _ = tokio::time::sleep(PEER_COMM_TIMEOUT) => {
-                    info!("Peer {:?} timed out", peer_addr);
-                    break;
-                },
             }
         }
+
         if let Err(e) = server_sender.send(ServerMessage::ProverDisconnected(peer_addr)).await {
             error!("Failed to send ProverDisconnected message to server: {}", e);
         }

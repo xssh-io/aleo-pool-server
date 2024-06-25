@@ -19,16 +19,14 @@ use snarkvm::{
     circuit::prelude::PrimeField,
     console::account::Address,
     prelude::{
-        coinbase::{CoinbasePuzzle, EpochChallenge, PartialSolution, ProverSolution, PuzzleCommitment, PuzzleConfig},
+        // coinbase::{CoinbasePuzzle, EpochChallenge, PartialSolution, ProverSolution, PuzzleCommitment, PuzzleConfig},
         narwhal::Data,
+        CanaryV0,
         Environment,
-        Testnet3,
         ToBytes,
         UniversalSRS,
     },
 };
-use snarkvm::circuit::prelude::PrimeField;
-use snarkvm::prelude::CanaryV0;
 use snarkvm_algorithms::{
     cfg_into_iter,
     crypto_hash::sha256d_to_u64,
