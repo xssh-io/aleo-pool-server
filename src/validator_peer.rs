@@ -162,6 +162,8 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                                                 let response = SnarkOSMessage::ChallengeResponse(ChallengeResponse {
                                                     genesis_header,
                                                     signature: Data::Object(random_account.sign_bytes(&nonce.to_le_bytes(), rng).unwrap()),
+                                                    nonce,
+                                                    restrictions_id: todo!()
                                                 });
                                                 if let Err(e) = framed.send(response).await {
                                                     error!("Error sending challenge response: {:?}", e);
@@ -206,7 +208,7 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                                                 }
                                             }
                                             SnarkOSMessage::PuzzleResponse(PuzzleResponse {
-                                                epoch_challenge, block_header
+                                                epoch_hash, block_header, ..
                                             }) => {
                                                 let block_header = match block_header.deserialize().await {
                                                     Ok(block_header) => block_header,
@@ -217,13 +219,13 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                                                         break;
                                                     }
                                                 };
-                                                let epoch_number = epoch_challenge.epoch_number();
+
                                                 if let Err(e) = server_sender.send(ServerMessage::NewEpochChallenge(
-                                                    epoch_challenge, block_header.proof_target()
+                                                    epoch_hash, block_header.proof_target()
                                                 )).await {
                                                     error!("Error sending new block template to pool server: {}", e);
                                                 } else {
-                                                    trace!("Sent new epoch challenge {} to pool server", epoch_number);
+                                                    trace!("Sent new epoch challenge {} to pool server", epoch_hash);
                                                 }
                                             }
                                             SnarkOSMessage::Disconnect(message) => {

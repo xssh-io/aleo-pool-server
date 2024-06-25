@@ -14,20 +14,27 @@ use anyhow::ensure;
 use blake2::Digest;
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use snarkos_node_router_messages::UnconfirmedSolution;
-use snarkvm::prelude::cfg_into_iter;
 use snarkvm::{
-    algorithms::polycommit::kzg10::{KZGCommitment, KZGProof},
+    algorithms::{
+        crypto_hash::sha256d_to_u64,
+        fft::DensePolynomial,
+        polycommit::kzg10::{KZGCommitment, KZGProof, KZG10},
+    },
     circuit::prelude::PrimeField,
     console::account::Address,
+    curves::PairingEngine,
     prelude::{
-        // coinbase::{CoinbasePuzzle, EpochChallenge, PartialSolution, ProverSolution, PuzzleCommitment, PuzzleConfig},
+        cfg_into_iter,
         narwhal::Data,
+        puzzle::{Solution, SolutionID},
         CanaryV0,
         Environment,
         ToBytes,
         UniversalSRS,
     },
+    utilities::CanonicalSerialize,
 };
 use speedometer::Speedometer;
 use tokio::{
@@ -697,9 +704,9 @@ impl Server {
                         // TODO: dummy operator
                         if let Err(e) = validator_sender
                             .send(SnarkOSMessage::UnconfirmedSolution(UnconfirmedSolution {
-                                puzzle_commitment: PuzzleCommitment::new(commitment),
-                                solution: Data::Object(ProverSolution::<CanaryV0>::new(
-                                    PartialSolution::<CanaryV0>::new(pool_address, nonce, commitment),
+                                solution_id: SolutionID::new(epoch_number, pool_address, nonce).unwrap(),
+                                solution: Data::Object(Solution::<CanaryV0>::new(
+                                    Solution::<CanaryV0>::new(pool_address, nonce),
                                     proof,
                                 )),
                             }))
