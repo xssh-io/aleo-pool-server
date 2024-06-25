@@ -15,6 +15,7 @@ use blake2::Digest;
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
 use snarkos_node_router_messages::UnconfirmedSolution;
+use snarkvm::prelude::cfg_into_iter;
 use snarkvm::{
     algorithms::polycommit::kzg10::{KZGCommitment, KZGProof},
     circuit::prelude::PrimeField,

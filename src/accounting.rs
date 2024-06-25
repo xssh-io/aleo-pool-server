@@ -14,10 +14,7 @@ use savefile::{load_file, save_file};
 use savefile_derive::Savefile;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use snarkvm::{
-    ledger::puzzle::PuzzleSolutions,
-    prelude::{CanaryV0, TestnetV0},
-};
+use snarkvm::{ledger::puzzle::PuzzleSolutions, prelude::CanaryV0};
 use tokio::{
     sync::{
         mpsc::{channel, Sender},
