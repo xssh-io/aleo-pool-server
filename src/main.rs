@@ -1,5 +1,6 @@
 mod accounting;
 mod api;
+mod coinbase;
 mod connection;
 mod server;
 mod validator_peer;
