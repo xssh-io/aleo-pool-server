@@ -1,6 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
+    io::{Result, Write},
     net::SocketAddr,
     sync::{
         atomic::{AtomicU32, AtomicU64, Ordering},
@@ -19,7 +20,7 @@ use snarkos_node_router_messages::UnconfirmedSolution;
 use snarkvm::{
     algorithms::{
         crypto_hash::sha256d_to_u64,
-        fft::DensePolynomial,
+        fft::{DensePolynomial, Evaluations},
         polycommit::kzg10::{KZGCommitment, KZGProof, KZG10},
     },
     circuit::prelude::PrimeField,
@@ -50,7 +51,35 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::{connection::Connection, validator_peer::SnarkOSMessage, AccountingMessage};
 
-type EpochChallenge<N: Network> = N::BlockHash;
+#[derive(Debug, Clone)]
+pub struct EpochChallenge<N: Network> {
+    /// The epoch number.
+    epoch_number: u32,
+    /// The epoch block hash, defined as the block hash right before the epoch updated.
+    epoch_block_hash: N::BlockHash,
+    /// The epoch polynomial.
+    epoch_polynomial: DensePolynomial<<N::PairingCurve as PairingEngine>::Fr>,
+    /// The evaluations of the epoch polynomial over the product domain.
+    epoch_polynomial_evaluations: Evaluations<<N::PairingCurve as PairingEngine>::Fr>,
+}
+
+impl<N: Network> EpochChallenge<N> {
+    pub fn degree(&self) -> u32 {
+        u32::try_from(self.epoch_polynomial.degree()).unwrap()
+    }
+}
+
+impl<N: Network> ToBytes for EpochChallenge<N> {
+    /// Writes the epoch challenge to a buffer.
+    fn write_le<W: Write>(&self, mut writer: W) -> Result<()> {
+        // Write the epoch number.
+        self.epoch_number.write_le(&mut writer)?;
+        // Write the epoch block hash.
+        self.epoch_block_hash.write_le(&mut writer)?;
+        // Write the epoch degree.
+        self.degree().write_le(&mut writer)
+    }
+}
 
 struct ProverState {
     peer_addr: SocketAddr,
@@ -412,19 +441,19 @@ impl Server {
             }
             ServerMessage::NewEpochChallenge(epoch_challenge, proof_target) => {
                 let latest_epoch = self.latest_epoch_number.load(Ordering::SeqCst);
-                if latest_epoch < epoch_challenge.epoch_number()
-                    || (epoch_challenge.epoch_number() == 0 && latest_epoch == 0)
+                if latest_epoch < epoch_challenge.epoch_number
+                    || (epoch_challenge.epoch_number == 0 && latest_epoch == 0)
                 {
-                    info!("New epoch challenge: {}", epoch_challenge.epoch_number());
+                    info!("New epoch challenge: {}", epoch_challenge.epoch_number);
                     self.latest_epoch_number
-                        .store(epoch_challenge.epoch_number(), Ordering::SeqCst);
+                        .store(epoch_challenge.epoch_number, Ordering::SeqCst);
                     self.latest_epoch_challenge
                         .write()
                         .await
                         .replace(epoch_challenge.clone());
                     self.clear_nonce();
                 }
-                if epoch_challenge.epoch_number() < latest_epoch {
+                if epoch_challenge.epoch_number < latest_epoch {
                     return;
                 }
                 info!("Updating target to {}", proof_target);
@@ -438,7 +467,7 @@ impl Server {
                 }
                 let global_difficulty_modifier = self.pool_state.write().await.next_global_target_modifier().await;
                 debug!("Global difficulty modifier: {}", global_difficulty_modifier);
-                let job_id = hex::encode(epoch_challenge.epoch_number().to_le_bytes());
+                let job_id = hex::encode(epoch_challenge.epoch_number.to_le_bytes());
                 let epoch_challenge_hex = hex::encode(epoch_challenge.to_bytes_le().unwrap());
                 for (peer_addr, sender) in self.authenticated_provers.read().await.clone().iter() {
                     let states = self.prover_states.read().await;
@@ -655,7 +684,7 @@ impl Server {
                         }
                     };
                     let product_eval_at_point =
-                        polynomial.evaluate(point) * epoch_challenge.epoch_polynomial().evaluate(point);
+                        polynomial.evaluate(point) * epoch_challenge.epoch_polynomial.evaluate(point);
                     match KZG10::check(
                         coinbase_puzzle.coinbase_verifying_key(),
                         &commitment,
@@ -783,8 +812,8 @@ fn prover_polynomial(
 ) -> anyhow::Result<DensePolynomial<<<CanaryV0 as Environment>::PairingCurve as PairingEngine>::Fr>> {
     let input = {
         let mut bytes = [0u8; 76];
-        bytes[..4].copy_from_slice(&epoch_challenge.epoch_number().to_bytes_le()?);
-        bytes[4..36].copy_from_slice(&epoch_challenge.epoch_block_hash().to_bytes_le()?);
+        bytes[..4].copy_from_slice(&epoch_challenge.epoch_number.to_bytes_le()?);
+        bytes[4..36].copy_from_slice(&epoch_challenge.epoch_block_hash.to_bytes_le()?);
         bytes[36..68].copy_from_slice(&address.to_bytes_le()?);
         bytes[68..].copy_from_slice(&nonce.to_le_bytes());
         bytes
