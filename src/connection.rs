@@ -27,39 +27,50 @@ use tracing::{error, info, trace, warn};
 
 use crate::server::ServerMessage;
 
+// 定义矿工连接结构体，存储矿工相关信息。
 pub struct Connection {
-    user_agent: String,
-    address: Option<Address<CanaryV0>>,
-    version: Version,
-    last_received: Option<Instant>,
+    user_agent: String, // 矿工代理字符串。
+    address: Option<Address<CanaryV0>>, // 矿工地址。
+    version: Version, // 矿工协议版本。
+    last_received: Option<Instant>, // 最后一次接收消息的时间戳。
 }
 
+// 定义握手超时时间。
 static PEER_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+// 定义通信超时时间。
 static PEER_COMM_TIMEOUT: Duration = Duration::from_secs(180);
 
+// 定义支持的最小和最大协议版本。
 static MIN_SUPPORTED_VERSION: Version = Version::new(2, 0, 0);
 static MAX_SUPPORTED_VERSION: Version = Version::new(2, 0, 0);
 
+// 实现Connection结构体。
 impl Connection {
+    // 异步初始化矿工连接。
     pub async fn init(
         stream: TcpStream,
         peer_addr: SocketAddr,
         server_sender: Sender<ServerMessage>,
         pool_address: Address<CanaryV0>,
     ) {
+        // 在单独的任务中运行连接处理。
         task::spawn(Connection::run(stream, peer_addr, server_sender, pool_address));
     }
 
+    // 主连接处理函数。
     pub async fn run(
         stream: TcpStream,
         peer_addr: SocketAddr,
         server_sender: Sender<ServerMessage>,
         pool_address: Address<CanaryV0>,
     ) {
+        // 使用Stratum协议编解码器封装网络流。
         let mut framed = Framed::new(stream, StratumCodec::default());
 
+        // 创建发送到矿工的消息通道。
         let (sender, mut receiver) = channel(1024);
 
+        // 初始化Connection对象。
         let mut conn = Connection {
             user_agent: "Unknown".to_string(),
             address: None,
@@ -67,20 +78,22 @@ impl Connection {
             last_received: None,
         };
 
-        // Handshake
-
+        // 执行握手流程。
         if let Ok((user_agent, version)) = Connection::handshake(&mut framed, pool_address.to_string()).await {
             conn.user_agent = user_agent;
             conn.version = version;
         } else {
+            // 握手失败，发送断开连接消息给服务器并返回。
             if let Err(e) = server_sender.send(ServerMessage::ProverDisconnected(peer_addr)).await {
                 error!("Failed to send ProverDisconnected message to server: {}", e);
             }
             return;
         }
 
+        // 执行授权流程。
         if let Ok(address) = Connection::authorize(&mut framed).await {
             conn.address = Some(address);
+            // 授权成功，发送认证消息给服务器。
             if let Err(e) = server_sender
                 .send(ServerMessage::ProverAuthenticated(
                     peer_addr,
@@ -92,18 +105,23 @@ impl Connection {
                 error!("Failed to send ProverAuthenticated message to server: {}", e);
             }
         } else {
+            // 授权失败，发送断开连接消息给服务器并返回。
             if let Err(e) = server_sender.send(ServerMessage::ProverDisconnected(peer_addr)).await {
                 error!("Failed to send ProverDisconnected message to server: {}", e);
             }
             return;
         }
 
+        // 更新最后一次接收消息的时间戳。
         conn.last_received = Some(Instant::now());
 
+        // 记录连接认证成功的日志。
         info!("Peer {:?} authenticated as {}", peer_addr, conn.address.unwrap());
 
         loop {
+            // 选择接收来自服务器的消息或矿工的消息。
             tokio::select! {
+                // 从服务器接收消息。
                 Some(msg) = receiver.recv() => {
                     if let Some(instant) = conn.last_received {
                         if instant.elapsed() > PEER_COMM_TIMEOUT {
