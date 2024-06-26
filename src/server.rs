@@ -15,6 +15,7 @@ use anyhow::ensure;
 use blake2::Digest;
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
+use rand::Rng;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use snarkos_node_router_messages::UnconfirmedSolution;
 use snarkvm::{
@@ -26,17 +27,18 @@ use snarkvm::{
     circuit::prelude::PrimeField,
     console::account::Address,
     curves::PairingEngine,
+    ledger::puzzle::PartialSolution,
     prelude::{
         cfg_into_iter,
         narwhal::Data,
-        puzzle::{PuzzleSolutions, Solution, SolutionID},
+        puzzle::{PuzzleSolutions, Solution},
         CanaryV0,
         Environment,
         Network,
         ToBytes,
         UniversalSRS,
     },
-    utilities::CanonicalSerialize,
+    utilities::{CanonicalSerialize, TestRng},
 };
 use speedometer::Speedometer;
 use tokio::{
@@ -64,6 +66,27 @@ pub struct EpochChallenge<N: Network> {
 }
 
 impl<N: Network> EpochChallenge<N> {
+    pub fn new(epoch_number: u32, epoch_block_hash: N::BlockHash, degree: u32) -> anyhow::Result<Self> {
+        // Construct the 'input' as '( epoch_number || epoch_block_hash )'
+        let mut input = vec![];
+        epoch_number.write_le(&mut input)?;
+        epoch_block_hash.write_le(&mut input)?;
+
+        let product_domain = CoinbasePuzzle::<N>::product_domain(degree).unwrap();
+
+        let epoch_polynomial = hash_to_polynomial::<<N::PairingCurve as PairingEngine>::Fr>(&input, degree);
+        ensure!(u32::try_from(epoch_polynomial.degree()).is_ok(), "Degree is too large");
+
+        let epoch_polynomial_evaluations = epoch_polynomial.evaluate_over_domain_by_ref(product_domain);
+        // Returns the epoch challenge.
+        Ok(EpochChallenge {
+            epoch_number,
+            epoch_block_hash,
+            epoch_polynomial,
+            epoch_polynomial_evaluations,
+        })
+    }
+
     pub fn degree(&self) -> u32 {
         u32::try_from(self.epoch_polynomial.degree()).unwrap()
     }
@@ -736,13 +759,14 @@ impl Server {
                             prover_display, proof_difficulty, global_proof_target
                         );
                         // TODO: dummy operator
+                        let mut rng = TestRng::from_seed(nonce);
+                        let epoch_hash = rng.gen::<<CanaryV0 as Network>::BlockHash>();
+                        let solution = PartialSolution::new(epoch_hash, pool_address, nonce).unwrap();
+                        let id = solution.id();
                         if let Err(e) = validator_sender
                             .send(SnarkOSMessage::UnconfirmedSolution(UnconfirmedSolution {
-                                solution_id: SolutionID::new(epoch_number, pool_address, nonce).unwrap(),
-                                solution: Data::Object(Solution::<CanaryV0>::new(
-                                    Solution::<CanaryV0>::new(pool_address, nonce),
-                                    proof,
-                                )),
+                                solution_id: solution.id(),
+                                solution: Data::Object(Solution::<CanaryV0>::new(solution, proof)),
                             }))
                             .await
                         {
@@ -750,7 +774,9 @@ impl Server {
                         }
                         if let Err(e) = {
                             accounting_sender
-                                .send(AccountingMessage::NewSolution(PuzzleSolutions::new(commitment)))
+                                .send(AccountingMessage::NewSolution(
+                                    PuzzleSolutions::new(vec![Solution::<CanaryV0>::new(solution, proof)]).unwrap(),
+                                ))
                                 .await
                         } {
                             error!("Failed to send accounting message: {}", e);

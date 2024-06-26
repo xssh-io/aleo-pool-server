@@ -37,7 +37,7 @@ use tokio_stream::StreamExt;
 use tokio_util::codec::Framed;
 use tracing::{debug, error, info, trace, warn};
 
-use crate::ServerMessage;
+use crate::{server::EpochChallenge, ServerMessage};
 
 pub struct Node {
     operator: String,
@@ -220,8 +220,9 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                                                     }
                                                 };
 
+                                                let challenge = EpochChallenge::<CanaryV0>::new(block_header.coinbase_target() as u32, epoch_hash, block_header.proof_target() as u32).unwrap();
                                                 if let Err(e) = server_sender.send(ServerMessage::NewEpochChallenge(
-                                                    epoch_hash, block_header.proof_target()
+                                                    challenge, block_header.proof_target()
                                                 )).await {
                                                     error!("Error sending new block template to pool server: {}", e);
                                                 } else {

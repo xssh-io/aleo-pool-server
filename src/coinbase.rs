@@ -8,7 +8,6 @@ use snarkvm::{
     },
     curves::PairingEngine,
     prelude::{Environment, Network, Result},
-    utilities::CanonicalDeserialize,
 };
 
 pub type CoinbaseVerifyingKey<N> = VerifierKey<<N as Environment>::PairingCurve>;
