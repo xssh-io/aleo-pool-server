@@ -13,11 +13,7 @@ use deadpool_postgres::{
     RecyclingMethod,
     Runtime,
 };
-use snarkos_node_router_messages::PuzzleResponse;
-use snarkvm::{
-    ledger::puzzle::{Puzzle, PuzzleSolutions},
-    prelude::CanaryV0,
-};
+use snarkvm::{ledger::puzzle::PuzzleSolutions, prelude::CanaryV0};
 use tokio_postgres::NoTls;
 use tracing::warn;
 
@@ -59,7 +55,7 @@ impl DB {
                 client
                     .simple_query(&format!("set search_path = {}", schema))
                     .await
-                    .map_err(|e| HookError::Abort(HookErrorCause::Backend(e)))?;
+                    .map_err(|e| HookError::Backend(e))?;
                 Ok(())
             })
         }))

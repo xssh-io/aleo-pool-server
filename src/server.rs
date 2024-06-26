@@ -239,6 +239,8 @@ pub enum ServerMessage {
     Exit,
 }
 
+type BlockHash<N: Network> = N::BlockHash;
+
 impl ServerMessage {
     fn name(&self) -> &'static str {
         match self {
