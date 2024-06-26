@@ -12,7 +12,7 @@ use std::{
 
 use aleo_stratum::{codec::ResponseParams, message::StratumMessage};
 use anyhow::ensure;
-use blake2::{digest::typenum::private::Trim, Digest};
+use blake2::Digest;
 use flurry::HashSet as FlurryHashSet;
 use json_rpc_types::{Error, ErrorCode, Id};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -29,7 +29,7 @@ use snarkvm::{
     prelude::{
         cfg_into_iter,
         narwhal::Data,
-        puzzle::{Puzzle, PuzzleSolutions, Solution, SolutionID},
+        puzzle::{PuzzleSolutions, Solution, SolutionID},
         CanaryV0,
         Environment,
         Network,
@@ -49,7 +49,7 @@ use tokio::{
 };
 use tracing::{debug, error, info, trace, warn};
 
-use crate::{connection::Connection, validator_peer::SnarkOSMessage, AccountingMessage};
+use crate::{coinbase::CoinbasePuzzle, connection::Connection, validator_peer::SnarkOSMessage, AccountingMessage};
 
 #[derive(Debug, Clone)]
 pub struct EpochChallenge<N: Network> {
@@ -270,7 +270,7 @@ pub struct Server {
     pool_state: Arc<RwLock<PoolState>>,
     prover_states: Arc<RwLock<HashMap<SocketAddr, RwLock<ProverState>>>>,
     prover_address_connections: Arc<RwLock<HashMap<Address<CanaryV0>, HashSet<SocketAddr>>>>,
-    coinbase_puzzle: Puzzle<CanaryV0>,
+    coinbase_puzzle: CoinbasePuzzle<CanaryV0>,
     latest_epoch_number: AtomicU32,
     latest_epoch_challenge: Arc<RwLock<Option<EpochChallenge<CanaryV0>>>>,
     latest_proof_target: AtomicU64,
@@ -302,8 +302,8 @@ impl Server {
         info!("Universal SRS initialized");
 
         info!("Initializing coinbase verifying key");
-        let coinbase_puzzle = Puzzle::<CanaryV0>::trim(&srs, PuzzleConfig { degree: (1 << 13) - 1 })
-            .expect("Failed to load coinbase verifying key");
+        let coinbase_puzzle =
+            CoinbasePuzzle::<CanaryV0>::new(&srs, (1 << 13) - 1).expect("Failed to load coinbase verifying key");
         info!("Coinbase verifying key initialized");
 
         let server = Arc::new(Server {
@@ -688,7 +688,7 @@ impl Server {
                     let product_eval_at_point =
                         polynomial.evaluate(point) * epoch_challenge.epoch_polynomial.evaluate(point);
                     match KZG10::check(
-                        coinbase_puzzle.coinbase_verifying_key(),
+                        coinbase_puzzle.verifying_key(),
                         &commitment,
                         point,
                         product_eval_at_point,
