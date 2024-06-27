@@ -7,6 +7,7 @@ use snarkvm::{
         polycommit::kzg10::{UniversalParams, VerifierKey},
     },
     curves::PairingEngine,
+    fields::Zero,
     prelude::{Environment, Network, Result},
 };
 

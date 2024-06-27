@@ -163,7 +163,7 @@ pub fn start(node: Node, server_sender: Sender<ServerMessage>) {
                                                     genesis_header,
                                                     signature: Data::Object(random_account.sign_bytes(&nonce.to_le_bytes(), rng).unwrap()),
                                                     nonce,
-                                                    restrictions_id: todo!()
+                                                    restrictions_id
                                                 });
                                                 if let Err(e) = framed.send(response).await {
                                                     error!("Error sending challenge response: {:?}", e);

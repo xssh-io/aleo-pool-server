@@ -31,7 +31,7 @@ use snarkvm::{
     prelude::{
         cfg_into_iter,
         narwhal::Data,
-        puzzle::{PuzzleSolutions, Solution},
+        puzzle::{PartialSolution, PuzzleSolutions, Solution},
         CanaryV0,
         Environment,
         Network,
@@ -250,14 +250,15 @@ pub enum ServerMessage {
     ProverConnected(TcpStream, SocketAddr),
     ProverAuthenticated(SocketAddr, Address<CanaryV0>, Sender<StratumMessage>),
     ProverDisconnected(SocketAddr),
-    ProverSubmit(
-        Id,
-        SocketAddr,
-        u32,
-        u64,
-        KZGCommitment<<CanaryV0 as Environment>::PairingCurve>,
-        KZGProof<<CanaryV0 as Environment>::PairingCurve>,
-    ),
+    ProverSubmit {
+        id: Id,
+        peer_addr: SocketAddr,
+        epoch_number: u32,
+        epoch_hash: <CanaryV0 as Network>::BlockHash,
+        nonce: u64,
+        commitment: KZGCommitment<<CanaryV0 as Environment>::PairingCurve>,
+        proof: KZGProof<<CanaryV0 as Environment>::PairingCurve>,
+    },
     NewEpochChallenge(EpochChallenge<CanaryV0>, u64),
     Exit,
 }
@@ -270,7 +271,7 @@ impl ServerMessage {
             ServerMessage::ProverConnected(..) => "ProverConnected",
             ServerMessage::ProverAuthenticated(..) => "ProverAuthenticated",
             ServerMessage::ProverDisconnected(..) => "ProverDisconnected",
-            ServerMessage::ProverSubmit(..) => "ProverSubmit",
+            ServerMessage::ProverSubmit { .. } => "ProverSubmit",
             ServerMessage::NewEpochChallenge(..) => "NewEpochChallenge",
             ServerMessage::Exit => "Exit",
         }
@@ -530,7 +531,15 @@ impl Server {
                     }
                 }
             }
-            ServerMessage::ProverSubmit(id, peer_addr, epoch_number, nonce, commitment, proof) => {
+            ServerMessage::ProverSubmit {
+                id,
+                peer_addr,
+                epoch_number,
+                epoch_hash,
+                nonce,
+                commitment,
+                proof,
+            } => {
                 let prover_states = self.prover_states.clone();
                 let pool_state = self.pool_state.clone();
                 let authenticated_provers = self.authenticated_provers.clone();
@@ -758,15 +767,15 @@ impl Server {
                             "Received unconfirmed solution from prover {} with difficulty {} (target {})",
                             prover_display, proof_difficulty, global_proof_target
                         );
+
                         // TODO: dummy operator
-                        let mut rng = TestRng::from_seed(nonce);
-                        let epoch_hash = rng.gen::<<CanaryV0 as Network>::BlockHash>();
-                        let solution = PartialSolution::new(epoch_hash, pool_address, nonce).unwrap();
-                        let id = solution.id();
+                        let solution =
+                            Solution::new(PartialSolution::new(epoch_hash, pool_address, nonce).unwrap(), nonce);
+
                         if let Err(e) = validator_sender
                             .send(SnarkOSMessage::UnconfirmedSolution(UnconfirmedSolution {
                                 solution_id: solution.id(),
-                                solution: Data::Object(Solution::<CanaryV0>::new(solution, proof)),
+                                solution: Data::Object(solution),
                             }))
                             .await
                         {
@@ -775,7 +784,7 @@ impl Server {
                         if let Err(e) = {
                             accounting_sender
                                 .send(AccountingMessage::NewSolution(
-                                    PuzzleSolutions::new(vec![Solution::<CanaryV0>::new(solution, proof)]).unwrap(),
+                                    PuzzleSolutions::new(vec![solution]).unwrap(),
                                 ))
                                 .await
                         } {

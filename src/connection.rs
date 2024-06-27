@@ -13,7 +13,7 @@ use futures_util::SinkExt;
 use semver::Version;
 use snarkvm::{
     algorithms::polycommit::kzg10::{KZGCommitment, KZGProof},
-    prelude::{Address, CanaryV0, Environment, FromBytes},
+    prelude::{Address, Bech32ID, CanaryV0, Environment, FromBytes, Network},
 };
 use tokio::{
     net::TcpStream,
@@ -29,10 +29,10 @@ use crate::server::ServerMessage;
 
 // 定义矿工连接结构体，存储矿工相关信息。
 pub struct Connection {
-    user_agent: String, // 矿工代理字符串。
+    user_agent: String,                 // 矿工代理字符串。
     address: Option<Address<CanaryV0>>, // 矿工地址。
-    version: Version, // 矿工协议版本。
-    last_received: Option<Instant>, // 最后一次接收消息的时间戳。
+    version: Version,                   // 矿工协议版本。
+    last_received: Option<Instant>,     // 最后一次接收消息的时间戳。
 }
 
 // 定义握手超时时间。
@@ -140,16 +140,17 @@ impl Connection {
                         conn.last_received = Some(Instant::now());
                         match msg {
                             StratumMessage::Submit(id, _worker_name, job_id, nonce, commitment, proof) => {
-                                let job_bytes = hex::decode(job_id.clone());
-                                if job_bytes.is_err() {
+                                let Ok(job_bytes) = hex::decode(job_id.clone()) else {
                                     warn!("Failed to decode job_id {} from peer {:?}", job_id, peer_addr);
                                     break;
-                                }
-                                if job_bytes.clone().unwrap().len() != 4 {
+                                };
+
+                                if job_bytes.len() != 4 +  <CanaryV0 as Network>::BlockHash::size_in_bytes() {
                                     warn!("Invalid job_id {} from peer {:?}", job_id, peer_addr);
                                     break;
                                 }
-                                let epoch_number = u32::from_le_bytes(job_bytes.unwrap().try_into().unwrap());
+                                let epoch_number = u32::from_le_bytes(job_bytes[0..4].try_into().unwrap());
+                                let epoch_hash = <CanaryV0 as Network>::BlockHash::from_bytes_le(&job_bytes[4..]).unwrap();
                                 let nonce_bytes = hex::decode(nonce.clone());
                                 if nonce_bytes.is_err() {
                                     warn!("Failed to decode nonce {} from peer {:?}", nonce, peer_addr);
@@ -176,7 +177,15 @@ impl Connection {
                                     warn!("Invalid proof from peer {:?}", peer_addr);
                                     break;
                                 }
-                                if let Err(e) = server_sender.send(ServerMessage::ProverSubmit(id, peer_addr, epoch_number, nonce, commitment.unwrap(), proof.unwrap())).await {
+                                if let Err(e) = server_sender.send(ServerMessage::ProverSubmit{
+                                    id,
+                                    peer_addr,
+                                    epoch_number,
+                                    epoch_hash,
+                                    nonce,
+                                    commitment: commitment.unwrap(),
+                                    proof: proof.unwrap()
+                                }).await {
                                     error!("Failed to send ProverSubmit message to server: {}", e);
                                 }
                             }
